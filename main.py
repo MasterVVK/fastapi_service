@@ -20,6 +20,7 @@ with open(config_path, 'r') as f:
 root_directory = config["root_directory"]
 exclusions = config["exclusions"]
 github_webhook_secret = config["github_webhook_secret"]
+branch = config["branch"]
 
 async def get_directory_structure(rootdir, exclusions):
     """
@@ -71,8 +72,8 @@ async def github_webhook(request: Request):
     event = request.headers.get('X-GitHub-Event')
     logging.info(f"Received event: {event}")
 
-    if event == "push" and json.loads(payload).get('ref') == 'refs/heads/main':
-        logging.info("Running sync_repo.sh script")
+    if event == "push" and json.loads(payload).get('ref') == f'refs/heads/{branch}':
+        logging.info(f"Running sync_repo.sh script for branch {branch}")
         try:
             result = subprocess.run(["/usr/bin/sh", "/srv/fastapi_service/sync_repo.sh"], capture_output=True, text=True)
             logging.info(f"Script output: {result.stdout}")
