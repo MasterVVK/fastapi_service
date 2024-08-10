@@ -6,8 +6,12 @@ import json
 import subprocess
 import hmac
 import hashlib
+import logging
 
 app = FastAPI()
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
 
 # Чтение конфигурации из config.json из корня проекта
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -60,12 +64,18 @@ async def github_webhook(request: Request):
     computed_signature = 'sha256=' + hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(signature, computed_signature):
+        logging.warning("Unauthorized request")
         return {"status": "unauthorized"}
 
     # Обработка Webhook события push
     event = request.headers.get('X-GitHub-Event')
+    logging.info(f"Received event: {event}")
+
     if event == "push" and json.loads(payload).get('ref') == 'refs/heads/main':
-        subprocess.run(["/usr/bin/sh", "./sync_repo.sh"])
+        logging.info("Running sync_repo.sh script")
+        result = subprocess.run(["sh", "./sync_repo.sh"], capture_output=True, text=True)
+        logging.info(f"Script output: {result.stdout}")
+        logging.error(f"Script error: {result.stderr}")
 
     return {"status": "success"}
 
