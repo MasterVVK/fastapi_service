@@ -74,7 +74,7 @@ async def github_webhook(request: Request):
     if event == "push" and json.loads(payload).get('ref') == 'refs/heads/main':
         logging.info("Running sync_repo.sh script")
         try:
-            result = subprocess.run(["sh", "./sync_repo.sh"], capture_output=True, text=True)
+            result = subprocess.run(["/usr/bin/sh", "/srv/fastapi_service/sync_repo.sh"], capture_output=True, text=True)
             logging.info(f"Script output: {result.stdout}")
             logging.error(f"Script error: {result.stderr}")
         except Exception as e:
