@@ -2,8 +2,10 @@
 
 # Чтение конфигурации из config.json
 CONFIG_PATH="$(dirname "$0")/config.json"
-ROOT_DIRECTORY=$(jq -r '.root_directory' "$CONFIG_PATH")
-REPO_URL=$(jq -r '.repo_url' "$CONFIG_PATH")
+
+# Использование команд Bash для извлечения значений из JSON
+ROOT_DIRECTORY=$(grep -oP '(?<="root_directory": ")[^"]*' "$CONFIG_PATH")
+REPO_URL=$(grep -oP '(?<="repo_url": ")[^"]*' "$CONFIG_PATH")
 
 # Переходим в родительскую директорию проекта
 cd "$(dirname "$ROOT_DIRECTORY")" || exit
