@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LOG_FILE="/srv/fastapi_service/sync_repo.log"
+LOG_FILE="sync_repo.log"
 
 # Чтение конфигурации из config.json
 CONFIG_PATH="$(dirname "$0")/config.json"
