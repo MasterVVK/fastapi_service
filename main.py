@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import os
 import aiofiles
 import base64
 import json
+import subprocess
+import hmac
+import hashlib
 
 app = FastAPI()
 
@@ -11,6 +14,7 @@ with open('/srv/fastapi_service/config.json', 'r') as f:
     config = json.load(f)
 root_directory = config["root_directory"]
 exclusions = config["exclusions"]
+github_webhook_secret = config["github_webhook_secret"]
 
 async def get_directory_structure(rootdir, exclusions):
     """
@@ -46,6 +50,23 @@ async def get_directory_structure(rootdir, exclusions):
 async def get_structure():
     directory_structure = await get_directory_structure(root_directory, exclusions)
     return directory_structure
+
+@app.post("/api/webhook")
+async def github_webhook(request: Request):
+    payload = await request.body()
+    signature = request.headers.get('X-Hub-Signature-256')
+    secret = github_webhook_secret.encode()
+    computed_signature = 'sha256=' + hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(signature, computed_signature):
+        return {"status": "unauthorized"}
+
+    # Обработка Webhook события push
+    event = request.headers.get('X-GitHub-Event')
+    if event == "push" and json.loads(payload).get('ref') == 'refs/heads/main':
+        subprocess.run(["/srv/fastapi_service/sync_repo.sh"])
+
+    return {"status": "success"}
 
 if __name__ == "__main__":
     import uvicorn
