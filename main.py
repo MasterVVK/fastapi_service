@@ -9,8 +9,9 @@ import hashlib
 
 app = FastAPI()
 
-# Чтение конфигурации из config.json
-with open('/srv/fastapi_service/config.json', 'r') as f:
+# Чтение конфигурации из config.json из корня проекта
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path, 'r') as f:
     config = json.load(f)
 root_directory = config["root_directory"]
 exclusions = config["exclusions"]
