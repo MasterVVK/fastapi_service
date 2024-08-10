@@ -76,8 +76,10 @@ async def github_webhook(request: Request):
         logging.info(f"Running sync_repo.sh script for branch {branch}")
         try:
             result = subprocess.run(["/usr/bin/sh", "sync_repo.sh"], capture_output=True, text=True)
-#            logging.info(f"Script output: {result.stdout}")
-#            logging.error(f"Script error: {result.stderr}")
+            logging.info(f"Script output: {result.stdout}")
+            logging.error(f"Script error: {result.stderr}")
+            if result.returncode != 0:
+                logging.error(f"sync_repo.sh script failed with return code {result.returncode}")
         except Exception as e:
             logging.error(f"Failed to run script: {e}")
 
