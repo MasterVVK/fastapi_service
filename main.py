@@ -65,7 +65,7 @@ async def github_webhook(request: Request):
     # Обработка Webhook события push
     event = request.headers.get('X-GitHub-Event')
     if event == "push" and json.loads(payload).get('ref') == 'refs/heads/main':
-        subprocess.run(["/srv/fastapi_service/sync_repo.sh"])
+        subprocess.run(["sh", "./sync_repo.sh"])
 
     return {"status": "success"}
 
