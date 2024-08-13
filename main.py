@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 import os
 import aiofiles
 import base64
@@ -22,21 +22,19 @@ exclusions = config["exclusions"]
 github_webhook_secret = config["github_webhook_secret"]
 branch = config["branch"]
 
+
 async def get_directory_structure(rootdir, exclusions):
     """
     Creates a nested dictionary that represents the folder structure of rootdir,
     excluding specified directories and files.
     """
-    dir_structure = {}
+    dir_structure = []
     for dirpath, dirnames, filenames in os.walk(rootdir):
         folder = os.path.relpath(dirpath, rootdir)
         # Пропуск директорий, которые находятся в списке исключений
         if any(excl in folder for excl in exclusions):
             continue
-        subdir = dir_structure
-        if folder != ".":
-            for sub in folder.split(os.sep):
-                subdir = subdir.setdefault(sub, {})
+        subdir = {'folder': folder, 'files': []}
         for filename in filenames:
             # Пропуск файлов, которые находятся в списке исключений
             if any(excl in filename for excl in exclusions):
@@ -49,13 +47,27 @@ async def get_directory_structure(rootdir, exclusions):
                 async with aiofiles.open(file_path, 'rb') as f:
                     content = await f.read()
                     content = base64.b64encode(content).decode('utf-8')
-            subdir[filename] = content
+            subdir['files'].append({'fileName': filename, 'content': content})
+        dir_structure.append(subdir)
     return dir_structure
 
+
 @app.get("/api/get_structure")
-async def get_structure():
+async def get_structure(page: int = Query(1, alias='page'), page_size: int = Query(10, alias='pageSize')):
     directory_structure = await get_directory_structure(root_directory, exclusions)
-    return directory_structure
+    # Пагинация
+    start = (page - 1) * page_size
+    end = start + page_size
+    paginated_structure = directory_structure[start:end]
+
+    return {
+        'projectName': os.path.basename(root_directory),
+        'files': paginated_structure,
+        'totalFiles': len(directory_structure),
+        'page': page,
+        'pageSize': page_size
+    }
+
 
 @app.post("/api/webhook")
 async def github_webhook(request: Request):
@@ -85,6 +97,8 @@ async def github_webhook(request: Request):
 
     return {"status": "success"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)
