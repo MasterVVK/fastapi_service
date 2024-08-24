@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Request, Query, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Query
 import os
 import aiofiles
 import base64
@@ -8,7 +7,6 @@ import subprocess
 import hmac
 import hashlib
 import logging
-from uuid import uuid4
 
 app = FastAPI()
 
@@ -23,9 +21,6 @@ root_directory = config["root_directory"]
 exclusions = config["exclusions"]
 github_webhook_secret = config["github_webhook_secret"]
 branch = config["branch"]
-
-# Хранилище для результатов сканирования
-scan_results = {}
 
 
 async def get_directory_structure(rootdir, exclusions):
@@ -57,41 +52,9 @@ async def get_directory_structure(rootdir, exclusions):
     return dir_structure
 
 
-def save_scan_result(task_id, directory_structure):
-    """
-    Сохранение результата сканирования в глобальное хранилище.
-    """
-    scan_results[task_id] = directory_structure
-
-
-async def scan_project_background(task_id):
-    """
-    Фоновая задача для сканирования проекта.
-    """
+@app.get("/api/get_structure")
+async def get_structure(page: int = Query(1, alias='page'), page_size: int = Query(10, alias='pageSize')):
     directory_structure = await get_directory_structure(root_directory, exclusions)
-    save_scan_result(task_id, directory_structure)
-
-
-@app.get("/api/scan_project")
-async def scan_project(background_tasks: BackgroundTasks):
-    """
-    Запуск сканирования проекта и возврат идентификатора задачи.
-    """
-    task_id = str(uuid4())
-    background_tasks.add_task(scan_project_background, task_id)
-    return {"task_id": task_id, "status": "started"}
-
-
-@app.get("/api/get_scan_result")
-async def get_scan_result(task_id: str, page: int = Query(1, alias='page'),
-                          page_size: int = Query(10, alias='pageSize')):
-    """
-    Получение результата сканирования по идентификатору задачи.
-    """
-    if task_id not in scan_results:
-        return JSONResponse(status_code=404, content={"message": "Task ID not found or scan not completed."})
-
-    directory_structure = scan_results[task_id]
     # Пагинация
     start = (page - 1) * page_size
     end = start + page_size
