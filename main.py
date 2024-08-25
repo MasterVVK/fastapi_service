@@ -69,6 +69,28 @@ async def get_structure(page: int = Query(1, alias='page'), page_size: int = Que
     }
 
 
+@app.get("/api/get_structure/metadata")
+async def get_structure_metadata():
+    """
+    Возвращает метаданные о структуре проекта, такие как общее количество файлов и общий размер данных в байтах.
+    """
+    directory_structure = await get_directory_structure(root_directory, exclusions)
+
+    total_files = 0
+    total_size = 0
+
+    for folder in directory_structure:
+        for file in folder['files']:
+            total_files += 1
+            total_size += len(file['content'].encode('utf-8'))  # Размер в байтах
+
+    return {
+        'projectName': os.path.basename(root_directory),
+        'totalFiles': total_files,
+        'totalSizeInBytes': total_size
+    }
+
+
 @app.post("/api/webhook")
 async def github_webhook(request: Request):
     payload = await request.body()
