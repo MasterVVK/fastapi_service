@@ -55,24 +55,33 @@ async def get_directory_structure(rootdir, exclusions):
 @app.get("/api/get_structure")
 async def get_structure(page: int = Query(1, alias='page'), page_size: int = Query(10, alias='pageSize')):
     directory_structure = await get_directory_structure(root_directory, exclusions)
+
+    # Общее количество файлов в проекте
+    total_files = sum(len(folder['files']) for folder in directory_structure)
+
     # Пагинация
     start = (page - 1) * page_size
     end = start + page_size
     paginated_structure = directory_structure[start:end]
 
+    # Общее количество страниц
+    total_pages = (total_files + page_size - 1) // page_size  # округление вверх
+
     return {
         'projectName': os.path.basename(root_directory),
         'files': paginated_structure,
-        'totalFiles': len(directory_structure),
+        'totalFiles': total_files,  # Общее количество файлов во всем проекте
         'page': page,
-        'pageSize': page_size
+        'pageSize': page_size,
+        'totalPages': total_pages  # Общее количество страниц в пагинации
     }
 
 
 @app.get("/api/get_structure/metadata")
 async def get_structure_metadata():
     """
-    Возвращает метаданные о структуре проекта, такие как общее количество файлов и общий размер данных в байтах.
+    Возвращает метаданные о структуре проекта, включая общее количество файлов и папок,
+    а также общий размер данных в байтах.
     """
     directory_structure = await get_directory_structure(root_directory, exclusions)
 
