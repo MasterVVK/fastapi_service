@@ -54,7 +54,7 @@ async def get_directory_structure(rootdir, exclusions):
 
 @app.get("/api/get_structure")
 async def get_structure(page: int = Query(1, alias='page'),
-                        byte_size: int = Query(1048576, alias='byteSize')):  # 1 MB by default
+                        byte_size: int = Query(204800, alias='byteSize')):  # 200 KB by default
     directory_structure = await get_directory_structure(root_directory, exclusions)
 
     files = []
