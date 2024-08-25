@@ -22,7 +22,6 @@ exclusions = config["exclusions"]
 github_webhook_secret = config["github_webhook_secret"]
 branch = config["branch"]
 
-
 async def get_directory_structure(rootdir, exclusions):
     """
     Creates a nested dictionary that represents the folder structure of rootdir,
@@ -51,17 +50,29 @@ async def get_directory_structure(rootdir, exclusions):
         dir_structure.append(subdir)
     return dir_structure
 
-
 @app.get("/api/get_structure")
-async def get_structure(page: int = Query(1, alias='page'),
-                        byte_size: int = Query(204800, alias='byteSize')):  # 200 KB by default
+async def get_structure(page: int = Query(1, alias='page'), byte_size: int = Query(204800, alias='byteSize')):  # 200 KB by default
     directory_structure = await get_directory_structure(root_directory, exclusions)
 
     files = []
     total_size = 0
     current_size = 0
     start_index = (page - 1) * byte_size
+    total_files_size = 0
+    total_pages = 1
+    temp_size = 0
 
+    # Подсчет общего размера файлов и расчёт общего количества страниц
+    for folder in directory_structure:
+        for file in folder['files']:
+            file_size = len(file['content'].encode('utf-8'))
+            total_files_size += file_size
+            temp_size += file_size
+            if temp_size > byte_size:
+                total_pages += 1
+                temp_size = file_size
+
+    # Сбор файлов для текущей страницы
     for folder in directory_structure:
         for file in folder['files']:
             file_size = len(file['content'].encode('utf-8'))
@@ -74,13 +85,6 @@ async def get_structure(page: int = Query(1, alias='page'),
             current_size += file_size
             total_size += file_size
 
-    # Общее количество данных во всем проекте
-    total_files_size = sum(
-        len(file['content'].encode('utf-8')) for folder in directory_structure for file in folder['files'])
-
-    # Общее количество страниц
-    total_pages = (total_files_size + byte_size - 1) // byte_size  # округление вверх
-
     return {
         'projectName': os.path.basename(root_directory),
         'files': files,
@@ -89,7 +93,6 @@ async def get_structure(page: int = Query(1, alias='page'),
         'totalPages': total_pages,
         'totalFilesSize': total_files_size
     }
-
 
 @app.get("/api/get_structure/metadata")
 async def get_structure_metadata():
@@ -112,7 +115,6 @@ async def get_structure_metadata():
         'totalFiles': total_files,
         'totalSizeInBytes': total_size
     }
-
 
 @app.post("/api/webhook")
 async def github_webhook(request: Request):
@@ -141,7 +143,6 @@ async def github_webhook(request: Request):
             logging.error(f"Failed to run script: {e}")
 
     return {"status": "success"}
-
 
 if __name__ == "__main__":
     import uvicorn
