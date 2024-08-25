@@ -53,27 +53,41 @@ async def get_directory_structure(rootdir, exclusions):
 
 
 @app.get("/api/get_structure")
-async def get_structure(page: int = Query(1, alias='page'), page_size: int = Query(10, alias='pageSize')):
+async def get_structure(page: int = Query(1, alias='page'),
+                        byte_size: int = Query(1048576, alias='byteSize')):  # 1 MB by default
     directory_structure = await get_directory_structure(root_directory, exclusions)
 
-    # Общее количество файлов в проекте
-    total_files = sum(len(folder['files']) for folder in directory_structure)
+    files = []
+    total_size = 0
+    current_size = 0
+    start_index = (page - 1) * byte_size
 
-    # Пагинация
-    start = (page - 1) * page_size
-    end = start + page_size
-    paginated_structure = directory_structure[start:end]
+    for folder in directory_structure:
+        for file in folder['files']:
+            file_size = len(file['content'].encode('utf-8'))
+            if total_size + file_size <= start_index:
+                total_size += file_size
+                continue
+            if current_size + file_size > byte_size:
+                break
+            files.append(file)
+            current_size += file_size
+            total_size += file_size
+
+    # Общее количество данных во всем проекте
+    total_files_size = sum(
+        len(file['content'].encode('utf-8')) for folder in directory_structure for file in folder['files'])
 
     # Общее количество страниц
-    total_pages = (total_files + page_size - 1) // page_size  # округление вверх
+    total_pages = (total_files_size + byte_size - 1) // byte_size  # округление вверх
 
     return {
         'projectName': os.path.basename(root_directory),
-        'files': paginated_structure,
-        'totalFiles': total_files,  # Общее количество файлов во всем проекте
+        'files': files,
         'page': page,
-        'pageSize': page_size,
-        'totalPages': total_pages  # Общее количество страниц в пагинации
+        'byteSize': byte_size,
+        'totalPages': total_pages,
+        'totalFilesSize': total_files_size
     }
 
 
