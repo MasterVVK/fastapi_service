@@ -22,10 +22,15 @@ exclusions = config["exclusions"]
 github_webhook_secret = config["github_webhook_secret"]
 branch = config["branch"]
 
-async def get_directory_structure(rootdir, exclusions):
+async def get_directory_structure(rootdir, exclusions, include_content=False):
     """
     Creates a nested dictionary that represents the folder structure of rootdir,
     excluding specified directories and files.
+
+    :param rootdir: Root directory to start scanning from.
+    :param exclusions: List of directories or files to exclude.
+    :param include_content: If True, include file content; otherwise, only include filenames.
+    :return: A list representing the structure of directories and files.
     """
     dir_structure = []
     for dirpath, dirnames, filenames in os.walk(rootdir):
@@ -38,22 +43,25 @@ async def get_directory_structure(rootdir, exclusions):
             # Пропуск файлов, которые находятся в списке исключений
             if any(excl in filename for excl in exclusions):
                 continue
-            file_path = os.path.join(dirpath, filename)
-            try:
-                async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
-                    content = await f.read()
-            except UnicodeDecodeError:
-                async with aiofiles.open(file_path, 'rb') as f:
-                    content = await f.read()
-                    content = base64.b64encode(content).decode('utf-8')
-            subdir['files'].append({'fileName': filename, 'content': content})
+            file_info = {'fileName': filename}
+            if include_content:
+                file_path = os.path.join(dirpath, filename)
+                try:
+                    async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
+                        content = await f.read()
+                    file_info['content'] = content
+                except UnicodeDecodeError:
+                    async with aiofiles.open(file_path, 'rb') as f:
+                        content = await f.read()
+                        file_info['content'] = base64.b64encode(content).decode('utf-8')
+            subdir['files'].append(file_info)
         dir_structure.append(subdir)
     return dir_structure
 
 @app.get("/api/get_structure")
 async def get_structure(page: int = Query(1, alias='page'),
                         byte_size: int = Query(51200, alias='byteSize')):  # 50 KB by default
-    directory_structure = await get_directory_structure(root_directory, exclusions)
+    directory_structure = await get_directory_structure(root_directory, exclusions, include_content=True)
 
     files = []
     total_size = 0
@@ -89,13 +97,24 @@ async def get_structure(page: int = Query(1, alias='page'),
         'totalFilesSize': total_files_size
     }
 
+@app.get("/api/get_structure_tree")
+async def get_structure_tree():
+    """
+    Возвращает структуру проекта в виде дерева, состоящего из папок, подпапок и файлов.
+    """
+    directory_structure = await get_directory_structure(root_directory, exclusions, include_content=False)
+    return {
+        'projectName': os.path.basename(root_directory),
+        'structure': directory_structure
+    }
+
 @app.get("/api/get_structure/metadata")
 async def get_structure_metadata():
     """
     Возвращает метаданные о структуре проекта, включая общее количество файлов и папок,
     а также общий размер данных в байтах.
     """
-    directory_structure = await get_directory_structure(root_directory, exclusions)
+    directory_structure = await get_directory_structure(root_directory, exclusions, include_content=True)
 
     total_files = 0
     total_size = 0
@@ -109,17 +128,6 @@ async def get_structure_metadata():
         'projectName': os.path.basename(root_directory),
         'totalFiles': total_files,
         'totalSizeInBytes': total_size
-    }
-
-@app.get("/api/get_structure_tree")
-async def get_structure_tree():
-    """
-    Возвращает структуру проекта в виде дерева, состоящего из папок, подпапок и файлов.
-    """
-    directory_structure = await get_directory_structure(root_directory, exclusions)
-    return {
-        'projectName': os.path.basename(root_directory),
-        'structure': directory_structure
     }
 
 @app.post("/api/webhook")
