@@ -22,7 +22,6 @@ exclusions = config["exclusions"]
 github_webhook_secret = config["github_webhook_secret"]
 branch = config["branch"]
 
-
 async def get_directory_structure(rootdir, exclusions):
     """
     Creates a nested dictionary that represents the folder structure of rootdir,
@@ -50,7 +49,6 @@ async def get_directory_structure(rootdir, exclusions):
             subdir['files'].append({'fileName': filename, 'content': content})
         dir_structure.append(subdir)
     return dir_structure
-
 
 @app.get("/api/get_structure")
 async def get_structure(page: int = Query(1, alias='page'),
@@ -91,7 +89,6 @@ async def get_structure(page: int = Query(1, alias='page'),
         'totalFilesSize': total_files_size
     }
 
-
 @app.get("/api/get_structure/metadata")
 async def get_structure_metadata():
     """
@@ -114,6 +111,16 @@ async def get_structure_metadata():
         'totalSizeInBytes': total_size
     }
 
+@app.get("/api/get_structure_tree")
+async def get_structure_tree():
+    """
+    Возвращает структуру проекта в виде дерева, состоящего из папок, подпапок и файлов.
+    """
+    directory_structure = await get_directory_structure(root_directory, exclusions)
+    return {
+        'projectName': os.path.basename(root_directory),
+        'structure': directory_structure
+    }
 
 @app.post("/api/webhook")
 async def github_webhook(request: Request):
@@ -142,7 +149,6 @@ async def github_webhook(request: Request):
             logging.error(f"Failed to run script: {e}")
 
     return {"status": "success"}
-
 
 if __name__ == "__main__":
     import uvicorn
